@@ -7,5 +7,3 @@ secrets/
 *.key
 .DS_Store
 .claude/settings.local.json*
-trajector-doctor-*.tar.gz
-trajector-doctor-*/
