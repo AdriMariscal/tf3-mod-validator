@@ -106,7 +106,8 @@ Cada hallazgo indica su severidad, un código estable, el fichero y un
 | Opción | Efecto |
 |---|---|
 | `--set` | Comprueba además las carpetas como un conjunto de mods. |
-| `--json` | Imprime el informe en JSON (ver abajo). |
+| `--format <nombre>` | Formato de salida: `text` (por defecto), `json` o `github` (ver abajo). |
+| `--json` | Igual que `--format json`. |
 | `-h`, `--help` | Muestra la ayuda. |
 | `-v`, `--version` | Imprime la versión. |
 
@@ -153,6 +154,28 @@ Con `--set`, `set` es `{ "findings": [...] }`. Un hallazgo de conjunto tiene `co
 
 `schemaVersion` solo cambia si esta forma cambia de manera incompatible. Añadir un campo no es uno de
 esos cambios.
+
+### Anotaciones de GitHub Actions
+
+`--format github` imprime un
+[comando de workflow](https://docs.github.com/es/actions/reference/workflows-and-actions/workflow-commands)
+por hallazgo, así que cada error y cada aviso aparece sobre su fichero en el pull request y en el
+resumen de la ejecución. Un hallazgo de conjunto genera una anotación por ubicación. La línea de
+resumen va al final.
+
+```yaml
+- run: npx tf3-mod-validator --format github --set mods/*/
+```
+
+```text
+::error file=mods/autor_primero/mod.json,title=MODJSON_MODID_FORMAT::"modId" must be a non-empty string of a-z, 0-9 and _, got "Autor-Primero". (at /modId)
+::warning file=mods/autor_primero/res/scripts/ui.lua,line=3,title=SCRIPT_SAVEDATA_KEY::setGuiSaveData uses key "autor_otro"; use the modId "autor_primero" so saved data never mixes with other mods.
+1 mod checked: 1 error, 1 warning.
+```
+
+Las rutas son relativas a la carpeta actual, que en un workflow es la raíz del repositorio, así que
+ejecuta el comando desde ahí. Los hallazgos de JSON no tienen línea: su anotación apunta al fichero
+y el mensaje termina con el JSON Pointer.
 
 ## Librería
 

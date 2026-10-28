@@ -105,7 +105,8 @@ Each finding gives its severity, a stable code, the file and a
 | Option | Effect |
 |---|---|
 | `--set` | Also check the folders as one mod set. |
-| `--json` | Print the report as JSON (see below). |
+| `--format <name>` | Output format: `text` (default), `json` or `github` (see below). |
+| `--json` | Same as `--format json`. |
 | `-h`, `--help` | Show the help. |
 | `-v`, `--version` | Print the version. |
 
@@ -152,6 +153,27 @@ counts both kinds of findings.
 
 `schemaVersion` changes only when this shape changes in an incompatible way. Adding a field is not
 one of those changes.
+
+### GitHub Actions annotations
+
+`--format github` prints one
+[workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
+per finding, so each error and warning shows up on its file in the pull request and in the run
+summary. A set finding gets one annotation per location. The summary line comes last.
+
+```yaml
+- run: npx tf3-mod-validator --format github --set mods/*/
+```
+
+```text
+::error file=mods/author_first/mod.json,title=MODJSON_MODID_FORMAT::"modId" must be a non-empty string of a-z, 0-9 and _, got "Author-First". (at /modId)
+::warning file=mods/author_first/res/scripts/ui.lua,line=3,title=SCRIPT_SAVEDATA_KEY::setGuiSaveData uses key "author_other"; use the modId "author_first" so saved data never mixes with other mods.
+1 mod checked: 1 error, 1 warning.
+```
+
+File paths are relative to the current folder, which in a workflow is the repository root, so run
+the command from there. JSON findings have no line: their annotation points at the file and the
+message ends with the JSON Pointer.
 
 ## Library
 
