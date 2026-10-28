@@ -1,0 +1,14 @@
+{
+  "name": "Full demo",
+  "summary": "Uses every documented field of mod.json and modinfo.json.",
+  "localization": {
+    "es": { "name": "Demo completa", "summary": "Usa todos los campos documentados." }
+  },
+  "authors": [
+    { "name": "Demo Author", "role": "Creator" },
+    { "name": "Demo Helper", "role": "Tester" }
+  ],
+  "tags": ["Misc", "Script"],
+  "dependencies": ["1234", "5678"],
+  "url": "https://example.com/demo-full"
+}

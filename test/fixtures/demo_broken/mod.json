@@ -1,0 +1,13 @@
+{
+  "modId": "Demo-Broken",
+  "revision": "3",
+  "severityAdd": "High",
+  "visibel": true,
+  "dependencies": [
+    { "mod": { "modId": "demo_library", "revisionMin": 5, "revisionMax": 2 } }
+  ],
+  "params": [
+    { "key": "mode", "name": "Mode", "uiType": "Dropdown", "values": ["A", "B"], "defaultIndex": 2 }
+  ],
+  "runScript": { "fileName": "setup.lua" }
+}

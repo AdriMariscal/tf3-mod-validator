@@ -1,0 +1,34 @@
+{
+  "name": "tf3-mod-validator",
+  "version": "0.1.0",
+  "description": "Checks Transport Fever 3 mods without opening the game.",
+  "keywords": [
+    "transport-fever-3",
+    "tf3",
+    "mod",
+    "modding",
+    "validator"
+  ],
+  "license": "MPL-2.0",
+  "author": "Adrian Mariscal",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AdriMariscal/tf3-mod-validator.git"
+  },
+  "type": "module",
+  "exports": "./src/index.js",
+  "bin": {
+    "tf3-mod-validator": "bin/tf3-mod-validator.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "test": "node --test"
+  }
+}

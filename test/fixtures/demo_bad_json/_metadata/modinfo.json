@@ -1,0 +1,1 @@
+{ "name": "Bad JSON demo", "summary": "mod.json has a trailing comma.", "authors": [{ "name": "Demo Author" }], "tags": ["Misc"] }

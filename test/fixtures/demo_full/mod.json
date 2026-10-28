@@ -1,0 +1,39 @@
+{
+  "modId": "demo_full",
+  "revision": 7,
+  "severityAdd": "None",
+  "severityRemove": "Critical",
+  "visible": true,
+  "cosmetic": false,
+  "dependencies": [
+    {
+      "mod": { "modId": "demo_library", "revisionMin": 2, "revisionMax": -1 },
+      "modInfo": { "displayName": "Demo library", "url": "https://example.com/demo-library" },
+      "loadBefore": true,
+      "optional": false
+    }
+  ],
+  "incompatibilities": [
+    { "mod": { "modId": "demo_rival", "revisionMax": 3 } }
+  ],
+  "params": [
+    {
+      "key": "speed",
+      "name": "Speed factor",
+      "tooltip": "Multiplies the top speed of demo vehicles.",
+      "uiType": "Slider",
+      "values": ["x1", "x2", "x4"],
+      "numbers": [1, 2, 4],
+      "defaultIndex": 0
+    },
+    {
+      "key": "enabled",
+      "name": "Enabled",
+      "uiType": "CheckBox",
+      "values": ["Off", "On"],
+      "defaultIndex": 1
+    }
+  ],
+  "preRunScript": { "fileName": "demo_full::setup.lua@preRun" },
+  "runScript": { "fileName": "demo_full::setup.lua@run" }
+}

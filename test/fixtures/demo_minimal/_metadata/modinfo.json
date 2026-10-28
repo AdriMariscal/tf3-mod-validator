@@ -1,0 +1,6 @@
+{
+  "name": "Minimal demo",
+  "summary": "The smallest mod that passes every check.",
+  "authors": [{ "name": "Demo Author", "role": "Creator" }],
+  "tags": ["Misc"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "A name that is far too long for the mod list",
+  "summary": "First line\nsecond line",
+  "tags": [],
+  "dependencies": [1234],
+  "url": "ftp://example.com/demo"
+}

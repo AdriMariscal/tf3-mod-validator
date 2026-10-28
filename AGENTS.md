@@ -31,6 +31,14 @@ is built on top of this validator.
 - CLI exit code: `0` when there are no errors (warnings allowed), `1` when there are errors, and
   `2` for usage errors. A `--json` flag prints machine-readable output.
 
+## Adding a check
+
+1. Add the code to `src/codes.js`. Its severity lives there, not at the call site. Never rename or
+   repurpose a released code; add a new one.
+2. Report it from the check in `src/checks/` with a JSON Pointer to the exact field.
+3. Test it in `test/`, and add a row to the codes tables of **both** READMEs.
+   `test/codes.test.js` fails until all three are done.
+
 ## Intellectual property (hard rules)
 
 This repo is public, and its development sessions are recorded and licensed as AI training data.
