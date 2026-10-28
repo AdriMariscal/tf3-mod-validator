@@ -1,0 +1,15 @@
+{
+  "dependencies": null,
+  "incompatibilities": null,
+  "modId": "demo_game_style",
+  "options": null,
+  "params": null,
+  "postRunScript": { "fileName": "" },
+  "preRunScript": { "fileName": "demo_game_style::/mod.script@preRunFn" },
+  "revision": 1,
+  "runScript": { "fileName": "" },
+  "severityAdd": "None",
+  "severityRemove": "None",
+  "autoActivate": false,
+  "url": ""
+}

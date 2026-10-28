@@ -256,7 +256,7 @@ Files and folders whose name starts with a dot (`.DS_Store`, `.git/`) are skippe
 | `MODJSON_PARAM_NUMBERS_INVALID` | error | A param `numbers` is not an array of finite numbers. |
 | `MODJSON_PARAM_NUMBERS_LENGTH` | error | A param `numbers` does not have the same length as `values`. |
 | `MODJSON_PARAM_DEFAULTINDEX` | error | A param `defaultIndex` is not a 0-based integer index into `values`. |
-| `MODJSON_SCRIPT_FILENAME_FORMAT` | error | A script `fileName` is missing or does not match `<modId>::<file>@<function>`. |
+| `MODJSON_SCRIPT_FILENAME_FORMAT` | error | A script `fileName` is missing or does not match `<modId>::/<file>@<function>`. `""` means no script. |
 | `MODJSON_SCRIPT_FOREIGN_MOD` | warning | A script `fileName` points at a modId other than this mod. |
 
 ### modinfo.json

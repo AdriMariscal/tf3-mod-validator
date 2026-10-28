@@ -16,9 +16,13 @@ const KNOWN_FIELDS = new Set([
   'severityRemove',
   'visible',
   'cosmetic',
+  'autoActivate',
+  'url',
   'dependencies',
   'incompatibilities',
   'params',
+  // Always null in the mods shipped with the game; its purpose is unknown, so its value is not checked.
+  'options',
   'preRunScript',
   'runScript',
   'postRunScript',
@@ -31,7 +35,7 @@ const SCRIPT_FIELDS = ['preRunScript', 'runScript', 'postRunScript'];
 export const MODID_PATTERN = /^[a-z0-9_]+$/;
 // `<author>_<name>`: both parts non-empty, author without underscores.
 const MODID_CONVENTION = /^[a-z0-9]+_[a-z0-9_]*[a-z0-9]$/;
-// `<modId>::<file>@<function>`
+// `<modId>::/<file>@<function>`; the slash after `::` is optional.
 const SCRIPT_REFERENCE = /^([a-z0-9_]+)::([^@\s]+)@([A-Za-z_][A-Za-z0-9_]*)$/;
 
 /**
@@ -61,9 +65,10 @@ export function checkModJson(data, context = {}) {
       report('MODJSON_SEVERITY_VALUE', pointer(field), `"${field}" must be one of ${SEVERITIES.join(', ')}, got ${JSON.stringify(data[field])}.`);
     }
   }
-  for (const field of ['visible', 'cosmetic']) {
+  for (const field of ['visible', 'cosmetic', 'autoActivate']) {
     expectType(data, field, 'boolean', pointer(field), report);
   }
+  expectType(data, 'url', 'string', pointer('url'), report);
 
   const dependencyIds = checkModReferences(data, 'dependencies', modId, report);
   const incompatibilityIds = checkModReferences(data, 'incompatibilities', modId, report);
@@ -120,7 +125,8 @@ function checkRevision(data, report) {
  */
 function checkModReferences(data, field, ownModId, report) {
   const ids = new Map();
-  if (!(field in data)) return ids;
+  // Mods shipped with the game write null when they have none.
+  if (!(field in data) || data[field] === null) return ids;
   const list = data[field];
   if (!Array.isArray(list)) {
     reportType(field, 'an array', list, pointer(field), report);
@@ -208,7 +214,7 @@ function checkDependencyExtras(entry, at, report) {
 }
 
 function checkParams(data, report) {
-  if (!('params' in data)) return;
+  if (!('params' in data) || data.params === null) return;
   const { params } = data;
   if (!Array.isArray(params)) {
     reportType('params', 'an array', params, pointer('params'), report);
@@ -285,14 +291,17 @@ function checkParamValues(param, index, at, report) {
 function checkScript(data, field, ownModId, report) {
   if (!(field in data)) return;
   const script = data[field];
+  // An empty string, as the hook or as its fileName, means the hook is not used.
+  if (script === '') return;
   if (!isPlainObject(script)) {
     reportType(field, 'an object', script, pointer(field), report);
     return;
   }
   const { fileName } = script;
+  if (fileName === '') return;
   const match = typeof fileName === 'string' ? SCRIPT_REFERENCE.exec(fileName) : null;
   if (!match) {
-    report('MODJSON_SCRIPT_FILENAME_FORMAT', 'fileName' in script ? pointer(field, 'fileName') : pointer(field), `"${field}.fileName" must look like "<modId>::<file>@<function>", got ${JSON.stringify(fileName)}.`);
+    report('MODJSON_SCRIPT_FILENAME_FORMAT', 'fileName' in script ? pointer(field, 'fileName') : pointer(field), `"${field}.fileName" must look like "<modId>::/<file>@<function>", or be "" for no script, got ${JSON.stringify(fileName)}.`);
     return;
   }
   if (ownModId !== undefined && match[1] !== ownModId) {

@@ -258,7 +258,7 @@ Los ficheros y carpetas cuyo nombre empieza por punto (`.DS_Store`, `.git/`) se 
 | `MODJSON_PARAM_NUMBERS_INVALID` | error | El `numbers` de un parámetro no es un array de números finitos. |
 | `MODJSON_PARAM_NUMBERS_LENGTH` | error | El `numbers` de un parámetro no tiene la misma longitud que `values`. |
 | `MODJSON_PARAM_DEFAULTINDEX` | error | El `defaultIndex` de un parámetro no es un índice entero, base 0, dentro de `values`. |
-| `MODJSON_SCRIPT_FILENAME_FORMAT` | error | El `fileName` de un script falta o no encaja con `<modId>::<fichero>@<función>`. |
+| `MODJSON_SCRIPT_FILENAME_FORMAT` | error | El `fileName` de un script falta o no encaja con `<modId>::/<fichero>@<función>`. `""` significa que no hay script. |
 | `MODJSON_SCRIPT_FOREIGN_MOD` | warning | El `fileName` de un script apunta a un modId distinto de este mod. |
 
 ### modinfo.json

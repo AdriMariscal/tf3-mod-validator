@@ -4,6 +4,14 @@ All notable changes to this project are listed here. Versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0.0, a minor version may change finding codes
 or the JSON output in incompatible ways; the changelog says so when it happens.
 
+## 0.2.1
+
+- Accept `mod.json` files written the way the mods shipped with the game write them: `null` for
+  `dependencies`, `incompatibilities` and `params`, an `options` field, and `""` as a script hook or
+  its `fileName` for no script. 0.2.0 reported errors for all of them.
+- `autoActivate` (boolean) and `url` (string) are known `mod.json` fields now.
+- A script `fileName` may have a slash after `::`, as in `<modId>::/mod.script@preRunFn`.
+
 ## 0.2.0
 
 - `--format github` prints GitHub Actions annotations, one per finding (one per location for set

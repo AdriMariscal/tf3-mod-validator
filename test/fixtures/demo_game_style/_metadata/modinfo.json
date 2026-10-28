@@ -1,0 +1,6 @@
+{
+  "name": "Game style demo",
+  "summary": "A mod.json written the way the mods shipped with the game write it.",
+  "authors": [{ "name": "Demo Author", "role": "Creator" }],
+  "tags": ["Misc"]
+}

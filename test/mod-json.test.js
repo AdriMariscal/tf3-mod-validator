@@ -91,6 +91,12 @@ describe('mod.json: revision, severities and flags', () => {
     assert.deepEqual(findings.map((f) => f.pointer), ['/severityAdd', '/severityRemove']);
   });
 
+  test('autoActivate must be a boolean and url a string', () => {
+    assert.deepEqual(check({ autoActivate: true, url: 'https://example.com/demo' }), []);
+    assert.deepEqual(codes(check({ autoActivate: 'yes' })), ['MODJSON_FIELD_TYPE']);
+    assert.deepEqual(codes(check({ url: 1 })), ['MODJSON_FIELD_TYPE']);
+  });
+
   test('visible and cosmetic must be booleans', () => {
     assert.deepEqual(check({ visible: false, cosmetic: true }), []);
     assert.deepEqual(codes(check({ visible: 'true', cosmetic: 0 })), ['MODJSON_FIELD_TYPE', 'MODJSON_FIELD_TYPE']);
@@ -105,6 +111,10 @@ describe('mod.json: dependencies', () => {
       dependencies: [dependency({ modId: 'demo_lib', revisionMin: 1, revisionMax: 4 }, { loadBefore: false, optional: true })],
     });
     assert.deepEqual(findings, []);
+  });
+
+  test('null lists are accepted, as in the mods shipped with the game', () => {
+    assert.deepEqual(check({ dependencies: null, incompatibilities: null, params: null, options: null }), []);
   });
 
   test('dependencies must be an array of objects', () => {
@@ -294,6 +304,14 @@ describe('mod.json: scripts', () => {
       }),
       [],
     );
+  });
+
+  test('an empty hook or an empty fileName means no script', () => {
+    assert.deepEqual(check({ preRunScript: '', runScript: { fileName: '' }, postRunScript: { fileName: '' } }), []);
+  });
+
+  test('a slash after :: is accepted', () => {
+    assert.deepEqual(check({ preRunScript: { fileName: 'demo_mod::/mod.script@preRunFn' } }), []);
   });
 
   test('a script must be an object', () => {

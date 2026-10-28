@@ -59,7 +59,7 @@ export const CODES = Object.freeze({
   MODJSON_PARAM_DEFAULTINDEX: { severity: 'error', description: 'A param `defaultIndex` is not a 0-based integer index into `values`.' },
 
   // --- mod.json: scripts ---
-  MODJSON_SCRIPT_FILENAME_FORMAT: { severity: 'error', description: 'A script `fileName` is missing or does not match `<modId>::<file>@<function>`.' },
+  MODJSON_SCRIPT_FILENAME_FORMAT: { severity: 'error', description: 'A script `fileName` is missing or does not match `<modId>::/<file>@<function>`. `""` means no script.' },
   MODJSON_SCRIPT_FOREIGN_MOD: { severity: 'warning', description: 'A script `fileName` points at a modId other than this mod.' },
 
   // --- _metadata/modinfo.json: file ---

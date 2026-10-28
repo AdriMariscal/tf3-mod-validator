@@ -16,6 +16,12 @@ describe('validateMod: fixtures', () => {
     assert.deepEqual(result.findings, []);
   });
 
+  test('demo_game_style, shaped like the mods shipped with the game, passes', async () => {
+    const result = await validateMod(join(FIXTURES, 'demo_game_style'));
+    assert.equal(result.modId, 'demo_game_style');
+    assert.deepEqual(result.findings, []);
+  });
+
   test('demo_full passes', async () => {
     const result = await validateMod(join(FIXTURES, 'demo_full'));
     assert.equal(result.modId, 'demo_full');
