@@ -104,4 +104,5 @@ export const CODES = Object.freeze({
   MODSET_CONTENT_CASE_COLLISION: { severity: 'warning', description: 'Mods that can be active together ship paths under `content/` that differ only in letter case.' },
   MODSET_SAVEDATA_KEY_CONFLICT: { severity: 'warning', description: 'Mods that can be active together call `setGuiSaveData` with the same literal key.' },
   MODSET_MODULE_FIELD_CONFLICT: { severity: 'warning', description: 'Mods that can be active together assign the same field of the same `ug_require` module.' },
+  MODSET_BASECONFIG_CONFLICT: { severity: 'warning', description: 'Mods that can be active together write different fixed values to the same base config field in their `preRunScript`.' },
 });

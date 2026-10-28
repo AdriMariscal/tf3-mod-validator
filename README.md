@@ -204,7 +204,11 @@ we have not confirmed in the game yet.
 each mod (`.d.tl` files are skipped). Comments are ignored. The scan finds:
 
 - `setGuiSaveData("key", …)` when the key is a string literal;
-- `local m = ug_require("path")` followed by `m.field = …` or `function m.field(…)`.
+- `local m = ug_require("path")` followed by `m.field = …` or `function m.field(…)`;
+- in the function that the mod's own `preRunScript` names, `cfg.path.to.field = <literal>`, where
+  `cfg` is the function's fourth parameter (the base config) and the literal is a number, `true`,
+  `false`, `nil` or a string. A value computed from anything else, such as
+  `cfg.field = cfg.field * 2`, composes with other mods and is skipped.
 
 It is not a parser, so keys built at run time, `m["field"] = …` and aliases of aliases are not
 seen. That is why these findings are warnings.
@@ -306,6 +310,7 @@ Files and folders whose name starts with a dot (`.DS_Store`, `.git/`) are skippe
 | `MODSET_CONTENT_CASE_COLLISION` | warning | Mods that can be active together ship paths under `content/` that differ only in letter case. |
 | `MODSET_SAVEDATA_KEY_CONFLICT` | warning | Mods that can be active together call `setGuiSaveData` with the same literal key. |
 | `MODSET_MODULE_FIELD_CONFLICT` | warning | Mods that can be active together assign the same field of the same `ug_require` module. |
+| `MODSET_BASECONFIG_CONFLICT` | warning | Mods that can be active together write different fixed values to the same base config field in their `preRunScript`. |
 
 ## Development
 

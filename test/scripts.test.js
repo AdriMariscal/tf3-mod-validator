@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { scanScript, validateMod } from '../src/index.js';
-import { blankComments, isScriptFile } from '../src/scripts.js';
+import { blankComments, isScriptFile, scanBaseConfigWrites } from '../src/scripts.js';
 import { codes, makeMod, only, VALID_MOD_JSON, VALID_MODINFO } from './helpers.js';
 
 describe('scripts: comments', () => {
@@ -104,5 +104,41 @@ describe('scripts: ug_require module fields', () => {
   test('does not confuse other names that end like the alias', () => {
     const scan = scanScript('local m = ug_require("base/m")\nother.m.x = 1\nmm.x = 1\nm.x == 1');
     assert.deepEqual(scan.moduleFields, []);
+  });
+});
+
+describe('scripts: base config writes', () => {
+  test('finds fixed values written through the fourth parameter', () => {
+    const source = [
+      'local script = {}',
+      '-- baseConfig.ignored = true',
+      'function script.preRunFn(captureParams, configDict, allModParams, baseConfig)',
+      '  baseConfig.noCosts = true',
+      '  baseConfig.costs . terrainRaise = 1.50;',
+      '  baseConfig.costs.terrainLower = baseConfig.costs.terrainLower * 2',
+      '  baseConfig.locations = 3 + 1',
+      "  baseConfig.name = 'demo'",
+      '  baseConfig.limit = 0x10',
+      '  baseConfig.removed = nil',
+      'end',
+      'return script',
+    ].join('\n');
+    assert.deepEqual(scanBaseConfigWrites(source, 'preRunFn'), [
+      { path: 'noCosts', value: 'true', line: 4 },
+      { path: 'costs.terrainRaise', value: '1.5', line: 5 },
+      { path: 'name', value: '"demo"', line: 8 },
+      { path: 'limit', value: '16', line: 9 },
+      { path: 'removed', value: 'nil', line: 10 },
+    ]);
+  });
+
+  test('accepts an assigned function, Teal annotations and any parameter name', () => {
+    const source = 'local m = {}\nm.preRunFn = function(a: any, b: any, c: any, cfg: BaseConfig)\n  cfg.noCosts = false\nend';
+    assert.deepEqual(scanBaseConfigWrites(source, 'preRunFn'), [{ path: 'noCosts', value: 'false', line: 3 }]);
+  });
+
+  test('needs the named function and its fourth parameter', () => {
+    assert.deepEqual(scanBaseConfigWrites('function preRunFnOld(a, b, c, d)\n  d.noCosts = true\nend', 'preRunFn'), []);
+    assert.deepEqual(scanBaseConfigWrites('function preRunFn(a, b, c)\n  c.noCosts = true\nend', 'preRunFn'), []);
   });
 });

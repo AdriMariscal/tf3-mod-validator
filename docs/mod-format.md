@@ -162,7 +162,8 @@ Configs and plugins are sorted by `order`; the direction and the default are not
   is the most dangerous case and must be an error in a mod set.
 - **Fixed values on base resources**: see "Changing base resources". Two mods that write a fixed
   value to the same field of the same resource, or of the base config, do not combine: the one
-  activated last wins. Deriving the value from the current one composes (×2 then ×1.5 = ×3).
+  activated last wins. Deriving the value from the current one composes (×2 then ×1.5 = ×3). Two
+  mods writing the *same* fixed value do not clash, whatever their order.
 - **Replacing base UI recipes**: two mods that replace the same recipe (the same `ug_require` path
   passed to `ReplaceRecipe`) conflict. What the game does then is not documented: it may keep one by
   `order` or fail. (unverified) Adding to an extension point (`react-plugin ::<ExtensionPoint>`)

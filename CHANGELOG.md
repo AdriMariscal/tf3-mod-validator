@@ -4,6 +4,11 @@ All notable changes to this project are listed here. Versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0.0, a minor version may change finding codes
 or the JSON output in incompatible ways; the changelog says so when it happens.
 
+## Unreleased
+
+- `MODSET_BASECONFIG_CONFLICT` (warning): mods that can be active together write different fixed
+  values to the same base config field in the function their `preRunScript` names.
+
 ## 0.2.1
 
 - Accept `mod.json` files written the way the mods shipped with the game write them: `null` for

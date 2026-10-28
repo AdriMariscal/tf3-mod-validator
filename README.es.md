@@ -206,7 +206,11 @@ permitidas que probablemente son un despiste, o reglas que aún no hemos confirm
 `.lua` y `.tl` de cada mod (los `.d.tl` se omiten). Los comentarios se ignoran. El análisis detecta:
 
 - `setGuiSaveData("clave", …)` cuando la clave es una cadena literal;
-- `local m = ug_require("ruta")` seguido de `m.campo = …` o `function m.campo(…)`.
+- `local m = ug_require("ruta")` seguido de `m.campo = …` o `function m.campo(…)`;
+- en la función que nombra el `preRunScript` del propio mod, `cfg.ruta.al.campo = <literal>`, donde
+  `cfg` es el cuarto parámetro de la función (la config base) y el literal es un número, `true`,
+  `false`, `nil` o una cadena. Un valor calculado a partir de otra cosa, como
+  `cfg.campo = cfg.campo * 2`, se compone con los demás mods y se omite.
 
 No es un parser, así que no ve claves construidas en tiempo de ejecución, `m["campo"] = …` ni alias
 de alias. Por eso estos hallazgos son avisos.
@@ -308,6 +312,7 @@ Los ficheros y carpetas cuyo nombre empieza por punto (`.DS_Store`, `.git/`) se 
 | `MODSET_CONTENT_CASE_COLLISION` | warning | Mods que pueden estar activos a la vez traen rutas bajo `content/` que solo difieren en mayúsculas y minúsculas. |
 | `MODSET_SAVEDATA_KEY_CONFLICT` | warning | Mods que pueden estar activos a la vez llaman a `setGuiSaveData` con la misma clave literal. |
 | `MODSET_MODULE_FIELD_CONFLICT` | warning | Mods que pueden estar activos a la vez asignan el mismo campo del mismo módulo de `ug_require`. |
+| `MODSET_BASECONFIG_CONFLICT` | warning | Mods que pueden estar activos a la vez escriben valores fijos distintos en el mismo campo de la config base desde su `preRunScript`. |
 
 ## Desarrollo
 

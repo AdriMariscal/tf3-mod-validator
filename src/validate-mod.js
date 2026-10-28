@@ -5,11 +5,11 @@
 import { readFile, stat } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 
-import { checkModJson, MODID_PATTERN, MODJSON_FILE } from './checks/mod-json.js';
+import { checkModJson, MODID_PATTERN, MODJSON_FILE, SCRIPT_REFERENCE } from './checks/mod-json.js';
 import { checkModInfo, MODINFO_FILE } from './checks/modinfo-json.js';
 import { listFiles } from './files.js';
 import { createReporter, isPlainObject } from './report.js';
-import { checkScripts, isScriptFile, scanScript } from './scripts.js';
+import { checkScripts, isScriptFile, scanBaseConfigWrites, scanScript } from './scripts.js';
 
 const DESCRIPTION_HTML_FILE = '_metadata/description.html';
 const CONTENT_DIR = 'content';
@@ -41,6 +41,8 @@ const CONTENT_DIR = 'content';
  * @property {boolean} declaresIncompatibilities  mod.json has an `incompatibilities` array.
  * @property {string[]} contentFiles  Paths under `content/`, relative to the mod folder.
  * @property {{ file: string, scan: import('./scripts.js').ScriptScan }[]} scripts
+ * @property {{ file: string, path: string, value: string, line: number }[]} baseConfigWrites
+ *   Fixed values that the mod's own `preRunScript` function writes to the base config.
  */
 
 /**
@@ -83,9 +85,15 @@ export async function loadMod(dir) {
   }
 
   const files = await listFiles(root);
+  const preRun = preRunTarget(data, modId);
   const scripts = [];
+  const baseConfigWrites = [];
   for (const file of files.filter(isScriptFile)) {
-    scripts.push({ file, scan: scanScript(await readFile(join(root, file), 'utf8')) });
+    const source = await readFile(join(root, file), 'utf8');
+    scripts.push({ file, scan: scanScript(source) });
+    if (preRun?.files.includes(file)) {
+      baseConfigWrites.push(...scanBaseConfigWrites(source, preRun.functionName).map((write) => ({ file, ...write })));
+    }
   }
   findings.push(...checkScripts(scripts, modId));
 
@@ -99,9 +107,24 @@ export async function loadMod(dir) {
     declaresIncompatibilities: isPlainObject(data) && Array.isArray(data.incompatibilities),
     contentFiles: files.filter((file) => file.startsWith(`${CONTENT_DIR}/`)),
     scripts,
+    baseConfigWrites,
   };
 
   return { result: { dir, modId, findings }, facts };
+}
+
+/**
+ * The script file and function that `preRunScript` names in this mod. The
+ * reference leaves out the extension, so both `.lua` and `.tl` are candidates.
+ * @returns {{ files: string[], functionName: string } | null}
+ */
+function preRunTarget(data, modId) {
+  const fileName = isPlainObject(data) && isPlainObject(data.preRunScript) ? data.preRunScript.fileName : undefined;
+  const match = typeof fileName === 'string' ? SCRIPT_REFERENCE.exec(fileName) : null;
+  if (!match || match[1] !== modId) return null;
+  const path = `${CONTENT_DIR}/${match[2].replace(/^\//, '')}`;
+  const files = isScriptFile(path) ? [path] : [`${path}.lua`, `${path}.tl`];
+  return { files, functionName: match[3] };
 }
 
 export class NotADirectoryError extends Error {

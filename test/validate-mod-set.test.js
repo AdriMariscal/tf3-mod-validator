@@ -241,3 +241,61 @@ describe('mod set: fixture', () => {
     ]);
   });
 });
+
+describe('mod set: base config', () => {
+  /**
+   * A mod whose preRunScript writes `body` inside preRunFn. Each mod names its
+   * script after itself, so the set has no content/ collision.
+   */
+  const preRun = (modId, body, { extension = 'lua', modJson = {} } = {}) =>
+    mod(modId, { preRunScript: { fileName: `${modId}::/${modId}.script@preRunFn` }, ...modJson }, {
+      [`content/${modId}.script.${extension}`]: `local script = {}\nfunction script.preRunFn(captureParams, configDict, allModParams, baseConfig)\n${body}\nend\nreturn script`,
+    });
+
+  test('different fixed values for one field are MODSET_BASECONFIG_CONFLICT', async () => {
+    const finding = only(
+      await checkSet(preRun('demo_alpha', '  baseConfig.costs.terrainRaise = 1'), preRun('demo_beta', '  baseConfig.costs.terrainRaise = 2.5')),
+      'MODSET_BASECONFIG_CONFLICT',
+    );
+    assert.equal(finding.severity, 'warning');
+    assert.match(finding.message, /^2 mods set base config field "costs\.terrainRaise" to different fixed values \(1, 2\.5\)/);
+    assert.deepEqual(finding.locations.map((l) => [l.modId, l.file, l.line]), [
+      ['demo_alpha', 'content/demo_alpha.script.lua', 3],
+      ['demo_beta', 'content/demo_beta.script.lua', 3],
+    ]);
+  });
+
+  test('the same fixed value, or a derived one, is fine', async () => {
+    const same = await checkSet(preRun('demo_alpha', '  baseConfig.noCosts = true'), preRun('demo_beta', '  baseConfig.noCosts = true'));
+    assert.deepEqual(codes(same), []);
+    const derived = await checkSet(
+      preRun('demo_alpha', '  baseConfig.costs.terrainRaise = baseConfig.costs.terrainRaise * 2'),
+      preRun('demo_beta', '  baseConfig.costs.terrainRaise = 3'),
+    );
+    assert.deepEqual(codes(derived), []);
+  });
+
+  test('a .tl script is found too', async () => {
+    const findings = await checkSet(
+      preRun('demo_alpha', '  baseConfig.noCosts = true', { extension: 'tl' }),
+      preRun('demo_beta', '  baseConfig.noCosts = false'),
+    );
+    assert.deepEqual(codes(findings), ['MODSET_BASECONFIG_CONFLICT']);
+  });
+
+  test('only the function named by the mod\'s own preRunScript counts', async () => {
+    const unreferenced = await preRun('demo_alpha', '  baseConfig.noCosts = true', { modJson: { preRunScript: { fileName: '' } } });
+    const foreign = await preRun('demo_beta', '  baseConfig.noCosts = false', { modJson: { preRunScript: { fileName: 'demo_other::/demo_beta.script@preRunFn' } } });
+    const findings = await checkSet(unreferenced, foreign, preRun('demo_gamma', '  baseConfig.noCosts = 1'));
+    assert.deepEqual(codes(findings), []);
+  });
+
+  test('mods declared incompatible never clash', async () => {
+    const incompatible = { incompatibilities: [requires('demo_beta')] };
+    const findings = await checkSet(
+      preRun('demo_alpha', '  baseConfig.noCosts = true', { modJson: incompatible }),
+      preRun('demo_beta', '  baseConfig.noCosts = false', { modJson: { incompatibilities: [requires('demo_alpha')] } }),
+    );
+    assert.deepEqual(codes(findings), []);
+  });
+});

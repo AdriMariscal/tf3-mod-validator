@@ -72,6 +72,7 @@ async function checkModSet(mods) {
   checkCycles(resolved, report);
   await checkContent(mods, canBeActiveTogether, report);
   checkScriptConflicts(mods, canBeActiveTogether, report);
+  checkBaseConfigConflicts(mods, canBeActiveTogether, report);
 
   return findings;
 }
@@ -269,6 +270,29 @@ function checkScriptConflicts(mods, canBeActiveTogether, report) {
     if (clashing.length < 2) continue;
     const [module, field] = id.split('\0');
     report('MODSET_MODULE_FIELD_CONFLICT', `${clashing.length} mods assign field "${field}" of module "${module}"; the last one to run wins for everyone.`, clashing.map((i) => perMod.get(i)));
+  }
+}
+
+/**
+ * Two mods that write different fixed values to one base config field cannot
+ * both get their way: the one activated last wins. The same value is fine.
+ */
+function checkBaseConfigConflicts(mods, canBeActiveTogether, report) {
+  const writes = new Map();
+  mods.forEach((mod, i) => {
+    for (const { file, path, value, line } of mod.baseConfigWrites) {
+      firstPerMod(writes, path, i, { value, location: at(mod, file, '', line) });
+    }
+  });
+  for (const [path, perMod] of writes) {
+    const indexes = [...perMod.keys()];
+    const value = (i) => perMod.get(i).value;
+    const clashing = indexes
+      .filter((i) => indexes.some((j) => value(j) !== value(i) && canBeActiveTogether(mods[i], mods[j])))
+      .sort((a, b) => a - b);
+    if (clashing.length < 2) continue;
+    const values = [...new Set(clashing.map(value))].join(', ');
+    report('MODSET_BASECONFIG_CONFLICT', `${clashing.length} mods set base config field "${path}" to different fixed values (${values}); the one activated last wins.`, clashing.map((i) => perMod.get(i).location));
   }
 }
 

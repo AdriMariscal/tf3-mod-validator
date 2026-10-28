@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Text scan of Lua and Teal scripts for the two script patterns that make
-// mods clash (see "Combinability" in docs/mod-format.md):
+// Text scan of Lua and Teal scripts for the script patterns that make mods
+// clash (see "Combinability" in docs/mod-format.md):
 //
 // - GUI saved-data keys passed as string literals to `setGuiSaveData`.
 // - Fields assigned on a module loaded with `ug_require`, which patches the
 //   shared module for every mod.
+// - Fixed values written to the base config in the `preRunScript` function.
 //
 // This is not a parser. Comments are blanked first, so commented-out code is
 // ignored, but keys built at run time, aliases of aliases and table-style
@@ -24,6 +25,10 @@ export function isScriptFile(path) {
 const SAVE_DATA_CALL = /\bsetGuiSaveData\s*\(\s*(["'])([^"'\n]*)\1\s*[,)]/g;
 // `local name = ug_require("path")`, also `ug_require "path"` and a Teal type annotation.
 const UG_REQUIRE = /\blocal\s+([A-Za-z_]\w*)\s*(?::[^=\n]*)?=\s*ug_require\s*\(?\s*(["'])([^"'\n]+)\2/g;
+
+// A whole literal right-hand side: a number, a boolean, nil or a string
+// without escapes. Anything else on the line makes it a computed value.
+const LITERAL = String.raw`-?(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)|true|false|nil|"[^"\\\n]*"|'[^'\\\n]*'`;
 
 /**
  * @typedef {object} ScriptScan
@@ -58,6 +63,40 @@ export function scanScript(source) {
   moduleFields.sort((a, b) => a.line - b.line);
 
   return { saveDataKeys, moduleFields };
+}
+
+/**
+ * Finds the fixed values that the function `functionName` writes to the base
+ * config, its fourth parameter. Only `<param>.<path> = <literal>` statements
+ * after the function header count; a value derived from another one, such as
+ * `<param>.x = <param>.x * 2`, composes with other mods and is skipped.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {{ path: string, value: string, line: number }[]}  `value` is normalized, so `1.0` equals `1`.
+ */
+export function scanBaseConfigWrites(source, functionName) {
+  const code = blankComments(source);
+  // `function m.name(…)`, `local function name(…)` or `m.name = function(…)`, with an optional Teal generic.
+  const header = new RegExp(`(?:\\bfunction\\s+(?:[A-Za-z_]\\w*\\s*\\.\\s*)*${functionName}|(?<![\\w:])${functionName}\\s*=\\s*function)\\s*(?:<[^>()]*>)?\\s*\\(([^)]*)\\)`).exec(code);
+  if (!header) return [];
+  const param = header[1].split(',')[3]?.trim().match(/^[A-Za-z_]\w*/)?.[0];
+  if (!param) return [];
+
+  const lineOf = lineFinder(code);
+  const assignment = new RegExp(`(?<![\\w.:])${param}((?:\\s*\\.\\s*[A-Za-z_]\\w*)+)\\s*=(?!=)\\s*(${LITERAL})(?=[ \\t]*(?:;|\\r?\\n|$))`, 'g');
+  assignment.lastIndex = header.index + header[0].length;
+  const writes = [];
+  for (let match; (match = assignment.exec(code)); ) {
+    writes.push({ path: match[1].replace(/[\s.]+/g, '.').slice(1), value: normalizeLiteral(match[2]), line: lineOf(match.index) });
+  }
+  return writes;
+}
+
+function normalizeLiteral(text) {
+  if (text.startsWith('"') || text.startsWith("'")) return JSON.stringify(text.slice(1, -1));
+  if (text === 'true' || text === 'false' || text === 'nil') return text;
+  const sign = text.startsWith('-') ? -1 : 1;
+  return String(sign * Number(text.replace(/^-/, '')));
 }
 
 /**

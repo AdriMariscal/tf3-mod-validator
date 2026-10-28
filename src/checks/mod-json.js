@@ -36,7 +36,7 @@ export const MODID_PATTERN = /^[a-z0-9_]+$/;
 // `<author>_<name>`: both parts non-empty, author without underscores.
 const MODID_CONVENTION = /^[a-z0-9]+_[a-z0-9_]*[a-z0-9]$/;
 // `<modId>::/<file>@<function>`; the slash after `::` is optional.
-const SCRIPT_REFERENCE = /^([a-z0-9_]+)::([^@\s]+)@([A-Za-z_][A-Za-z0-9_]*)$/;
+export const SCRIPT_REFERENCE = /^([a-z0-9_]+)::([^@\s]+)@([A-Za-z_][A-Za-z0-9_]*)$/;
 
 /**
  * Checks the parsed content of a `mod.json` file.
