@@ -1,6 +1,6 @@
 {
   "name": "tf3-mod-validator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Checks Transport Fever 3 mods without opening the game.",
   "keywords": [
     "transport-fever-3",

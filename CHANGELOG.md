@@ -4,7 +4,7 @@ All notable changes to this project are listed here. Versions follow
 [Semantic Versioning](https://semver.org/). Before 1.0.0, a minor version may change finding codes
 or the JSON output in incompatible ways; the changelog says so when it happens.
 
-## Unreleased
+## 0.2.0
 
 - `--format github` prints GitHub Actions annotations, one per finding (one per location for set
   findings). `--format text` and `--format json` are accepted too; `--json` stays as a shorthand.
@@ -17,3 +17,6 @@ First release.
 - Mod-set checks with `--set` / `validateModSet`: duplicate modIds, dependencies, cycles,
   incompatibilities, `content/` collisions, saved-data keys and `ug_require` module fields.
 - Text and `--json` output; exit codes 0, 1 and 2.
+
+The 0.1.0 package on npm was published by hand from a later commit, so it already includes
+`--format github`. The `v0.1.0` tag marks the commit that was meant to ship.
