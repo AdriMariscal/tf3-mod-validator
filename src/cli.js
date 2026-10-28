@@ -5,6 +5,7 @@
 import { parseArgs } from 'node:util';
 
 import pkg from '../package.json' with { type: 'json' };
+import { validateModSet } from './validate-mod-set.js';
 import { NotADirectoryError, validateMod } from './validate-mod.js';
 
 export const EXIT_OK = 0;
@@ -17,9 +18,11 @@ export const JSON_SCHEMA_VERSION = 1;
 const USAGE = `Usage: tf3-mod-validator [options] <mod-folder>...
 
 Checks Transport Fever 3 mods without opening the game.
-Each folder is checked on its own.
+Each folder is checked on its own. With --set, the folders are also
+checked as a set of mods that must work in any combination.
 
 Options:
+  --set          Also check the folders as one mod set
   --json         Print machine-readable JSON
   -h, --help     Show this help
   -v, --version  Print the version
@@ -40,6 +43,7 @@ export async function run(argv, { stdout, stderr }) {
       args: argv,
       allowPositionals: true,
       options: {
+        set: { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
         version: { type: 'boolean', short: 'v', default: false },
@@ -64,10 +68,18 @@ export async function run(argv, { stdout, stderr }) {
     return EXIT_USAGE;
   }
 
-  const mods = [];
+  let mods;
+  let set = null;
   try {
-    for (const dir of positionals) {
-      mods.push(await validateMod(dir));
+    if (values.set) {
+      const result = await validateModSet(positionals);
+      mods = result.mods;
+      set = { findings: result.findings };
+    } else {
+      mods = [];
+      for (const dir of positionals) {
+        mods.push(await validateMod(dir));
+      }
     }
   } catch (error) {
     if (!(error instanceof NotADirectoryError)) throw error;
@@ -75,13 +87,13 @@ export async function run(argv, { stdout, stderr }) {
     return EXIT_USAGE;
   }
 
-  const summary = summarize(mods);
-  stdout.write(values.json ? formatJson(mods, summary) : formatText(mods, summary));
+  const summary = summarize(mods, set);
+  stdout.write(values.json ? formatJson(mods, set, summary) : formatText(mods, set, summary));
   return summary.errors > 0 ? EXIT_FINDINGS : EXIT_OK;
 }
 
-function summarize(mods) {
-  const all = mods.flatMap((mod) => mod.findings);
+function summarize(mods, set) {
+  const all = [...mods.flatMap((mod) => mod.findings), ...(set?.findings ?? [])];
   return {
     mods: mods.length,
     errors: all.filter((finding) => finding.severity === 'error').length,
@@ -89,11 +101,11 @@ function summarize(mods) {
   };
 }
 
-function formatJson(mods, summary) {
-  return JSON.stringify({ schemaVersion: JSON_SCHEMA_VERSION, mods, summary }, null, 2) + '\n';
+function formatJson(mods, set, summary) {
+  return JSON.stringify({ schemaVersion: JSON_SCHEMA_VERSION, mods, set, summary }, null, 2) + '\n';
 }
 
-function formatText(mods, summary) {
+function formatText(mods, set, summary) {
   const lines = [];
   for (const mod of mods) {
     lines.push(mod.modId ? `${mod.dir} (${mod.modId})` : mod.dir);
@@ -101,14 +113,34 @@ function formatText(mods, summary) {
       lines.push('  ok');
     }
     for (const finding of mod.findings) {
-      const location = finding.pointer ? `${finding.file}#${finding.pointer}` : finding.file;
-      lines.push(`  ${finding.severity.padEnd(7)}  ${finding.code}  ${location}`);
+      lines.push(`  ${finding.severity.padEnd(7)}  ${finding.code}  ${formatLocation(finding)}`);
       lines.push(`           ${finding.message}`);
     }
     lines.push('');
   }
-  lines.push(`${plural(summary.mods, 'mod')} checked: ${plural(summary.errors, 'error')}, ${plural(summary.warnings, 'warning')}.`);
+  if (set) {
+    lines.push('Mod set');
+    if (set.findings.length === 0) {
+      lines.push('  ok');
+    }
+    for (const finding of set.findings) {
+      lines.push(`  ${finding.severity.padEnd(7)}  ${finding.code}`);
+      lines.push(`           ${finding.message}`);
+      for (const location of finding.locations) {
+        lines.push(`           - ${location.dir}: ${formatLocation(location)}`);
+      }
+    }
+    lines.push('');
+  }
+  const scope = set ? ' as a set' : '';
+  lines.push(`${plural(summary.mods, 'mod')} checked${scope}: ${plural(summary.errors, 'error')}, ${plural(summary.warnings, 'warning')}.`);
   return lines.join('\n') + '\n';
+}
+
+/** `file:line` for scripts, `file#pointer` for JSON, `file` for the whole file. */
+function formatLocation({ file, pointer, line }) {
+  if (line !== null) return `${file}:${line}`;
+  return pointer ? `${file}#${pointer}` : file;
 }
 
 function plural(count, noun) {

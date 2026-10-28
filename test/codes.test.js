@@ -16,7 +16,7 @@ const read = (path) => readFile(new URL(path, root), 'utf8');
 describe('finding codes', () => {
   test('have an UPPER_SNAKE name, a severity and a description', () => {
     for (const [code, entry] of Object.entries(CODES)) {
-      assert.match(code, /^(MODJSON|MODINFO)_[A-Z0-9_]+$/, code);
+      assert.match(code, /^(MODJSON|MODINFO|SCRIPT|MODSET)_[A-Z0-9_]+$/, code);
       assert.ok(['error', 'warning'].includes(entry.severity), code);
       assert.ok(entry.description.length > 0, code);
     }

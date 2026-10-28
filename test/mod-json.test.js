@@ -26,10 +26,11 @@ describe('mod.json: document', () => {
 
   test('every finding carries file, pointer, severity and message', () => {
     const finding = only(check({ revision: 'x' }), 'MODJSON_REVISION_TYPE');
-    assert.deepEqual(Object.keys(finding).sort(), ['code', 'file', 'message', 'pointer', 'severity']);
+    assert.deepEqual(Object.keys(finding).sort(), ['code', 'file', 'line', 'message', 'pointer', 'severity']);
     assert.equal(finding.file, 'mod.json');
     assert.equal(finding.pointer, '/revision');
     assert.equal(finding.severity, 'error');
+    assert.equal(finding.line, null);
   });
 
   test('unknown top-level fields are MODJSON_UNKNOWN_FIELD warnings', () => {

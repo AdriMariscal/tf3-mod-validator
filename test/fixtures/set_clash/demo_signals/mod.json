@@ -1,0 +1,10 @@
+{
+  "modId": "demo_signals",
+  "revision": 1,
+  "dependencies": [
+    { "mod": { "modId": "demo_roads" }, "modInfo": { "displayName": "Demo roads" } }
+  ],
+  "incompatibilities": [
+    { "mod": { "modId": "demo_trams" } }
+  ]
+}

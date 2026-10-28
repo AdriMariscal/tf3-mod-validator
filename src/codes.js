@@ -88,4 +88,20 @@ export const CODES = Object.freeze({
   MODINFO_DEPENDENCY_FORMAT: { severity: 'error', description: 'A `dependencies` entry is not a mod.io id written as a string of digits.' },
   MODINFO_DEPENDENCY_DUPLICATE: { severity: 'warning', description: 'The same mod.io id appears twice in `dependencies`.' },
   MODINFO_URL_FORMAT: { severity: 'error', description: '`url` is not an absolute http or https URL.' },
+
+  // --- scripts (single mod) ---
+  SCRIPT_SAVEDATA_KEY: { severity: 'warning', description: 'A script calls `setGuiSaveData` with a literal key other than the modId.' },
+
+  // --- mod set ---
+  MODSET_MODID_DUPLICATE: { severity: 'error', description: 'Two or more mods in the set share a modId, so the game keeps only one of them.' },
+  MODSET_DEPENDENCY_NOT_IN_SET: { severity: 'warning', description: 'A required dependency is not part of the set.' },
+  MODSET_DEPENDENCY_REVISION: { severity: 'error', description: 'A required dependency is in the set, but its `revision` is outside `revisionMin`..`revisionMax`.' },
+  MODSET_DEPENDENCY_CYCLE: { severity: 'error', description: 'Dependencies between mods of the set form a cycle.' },
+  MODSET_INCOMPAT_ASYMMETRIC: { severity: 'error', description: 'A mod declares another mod of the set incompatible, but not the other way round.' },
+  MODSET_DEP_INCOMPAT_CONFLICT: { severity: 'error', description: 'A mod requires another mod of the set that declares it incompatible.' },
+  MODSET_CONTENT_COLLISION: { severity: 'error', description: 'Mods that can be active together ship different files at the same path under `content/`.' },
+  MODSET_CONTENT_IDENTICAL: { severity: 'warning', description: 'Mods that can be active together ship byte-identical files at the same path under `content/`.' },
+  MODSET_CONTENT_CASE_COLLISION: { severity: 'warning', description: 'Mods that can be active together ship paths under `content/` that differ only in letter case.' },
+  MODSET_SAVEDATA_KEY_CONFLICT: { severity: 'warning', description: 'Mods that can be active together call `setGuiSaveData` with the same literal key.' },
+  MODSET_MODULE_FIELD_CONFLICT: { severity: 'warning', description: 'Mods that can be active together assign the same field of the same `ug_require` module.' },
 });

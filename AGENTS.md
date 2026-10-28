@@ -66,4 +66,6 @@ Therefore:
 2. Mod-set checks: unique `modId`s, no two mods shipping the same path under `content/`, an acyclic
    dependency graph, symmetric incompatibilities, and the warnings listed under "Combinability" in
    `docs/mod-format.md`.
+   Not covered yet, because `docs/mod-format.md` has no format facts to base a deterministic rule
+   on: absolute values on base resources in load scripts, and `react-replacement-config` recipes.
 3. Publish to npm.

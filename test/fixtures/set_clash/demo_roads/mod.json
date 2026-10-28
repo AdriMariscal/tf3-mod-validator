@@ -1,0 +1,7 @@
+{
+  "modId": "demo_roads",
+  "revision": 2,
+  "dependencies": [
+    { "mod": { "modId": "demo_signals" }, "modInfo": { "displayName": "Demo signals" } }
+  ]
+}

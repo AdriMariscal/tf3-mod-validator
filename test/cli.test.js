@@ -91,11 +91,13 @@ describe('cli: options', () => {
     assert.deepEqual(report.summary, { mods: 1, errors: 12, warnings: 3 });
     assert.equal(report.mods[0].dir, broken);
     assert.equal(report.mods[0].modId, null);
+    assert.equal(report.set, null);
     assert.deepEqual(report.mods[0].findings[0], {
       code: 'MODJSON_UNKNOWN_FIELD',
       severity: 'warning',
       file: 'mod.json',
       pointer: '/visibel',
+      line: null,
       message: 'Unknown field "visibel". Check the spelling; field names are case-sensitive.',
     });
   });
@@ -110,5 +112,42 @@ describe('cli: executable', () => {
 
     await assert.rejects(exec(process.execPath, [BIN, broken]), (error) => error.code === EXIT_FINDINGS);
     await assert.rejects(exec(process.execPath, [BIN]), (error) => error.code === EXIT_USAGE);
+  });
+});
+
+describe('cli: --set', () => {
+  const setDirs = ['demo_roads', 'demo_signals', 'demo_trams'].map((name) => join(FIXTURES, 'set_clash', name));
+
+  test('prints the set block, counts its findings and exits 1', async () => {
+    const { code, stdout } = await cli('--set', ...setDirs);
+    assert.equal(code, EXIT_FINDINGS);
+    assert.match(stdout, /\nMod set\n {2}error {4}MODSET_INCOMPAT_ASYMMETRIC\n/);
+    assert.match(stdout, /- .*demo_trams: res\/scripts\/ui\.lua:3\n/);
+    assert.match(stdout, /3 mods checked as a set: 3 errors, 2 warnings\./);
+  });
+
+  test('a clean set prints "ok" and exits 0', async () => {
+    const { code, stdout } = await cli('--set', minimal);
+    assert.equal(code, EXIT_OK);
+    assert.match(stdout, /\nMod set\n {2}ok\n/);
+  });
+
+  test('--json adds the set findings with their locations', async () => {
+    const { stdout } = await cli('--set', '--json', ...setDirs);
+    const report = JSON.parse(stdout);
+    assert.deepEqual(report.summary, { mods: 3, errors: 3, warnings: 2 });
+    assert.deepEqual(report.set.findings[0].locations[0], {
+      dir: setDirs[1],
+      modId: 'demo_signals',
+      file: 'mod.json',
+      pointer: '/incompatibilities/0',
+      line: null,
+    });
+  });
+
+  test('without --set the same folders are only checked one by one', async () => {
+    const { code, stdout } = await cli(...setDirs);
+    assert.equal(code, EXIT_OK);
+    assert.doesNotMatch(stdout, /Mod set/);
   });
 });

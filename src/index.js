@@ -6,3 +6,5 @@ export { CODES } from './codes.js';
 export { checkModJson } from './checks/mod-json.js';
 export { checkModInfo } from './checks/modinfo-json.js';
 export { NotADirectoryError, validateMod } from './validate-mod.js';
+export { validateModSet } from './validate-mod-set.js';
+export { scanScript } from './scripts.js';

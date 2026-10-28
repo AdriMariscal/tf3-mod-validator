@@ -6,9 +6,10 @@
 
 Checks Transport Fever 3 mods **without opening the game**.
 
-- **Today:** one mod at a time. `mod.json` and `_metadata/modinfo.json` must be well formed.
-- **Next:** mod sets. A group of mods must work in any combination: unique `modId`s, no two mods
-  shipping the same file under `content/`, no dependency cycles, symmetric incompatibilities.
+- **One mod:** `mod.json` and `_metadata/modinfo.json` are well formed.
+- **A mod set:** a group of mods can be active in any combination without stepping on each other.
+  That means unique `modId`s, no two mods shipping the same file under `content/`, no dependency
+  cycles, symmetric incompatibilities, and no shared saved-data keys or patched module fields.
 
 Every check is a fixed rule or a numeric limit, so the same mod always gives the same result. The
 rules are written down in [docs/mod-format.md](docs/mod-format.md).
@@ -35,7 +36,45 @@ Several folders can be checked in one run; each one is checked on its own:
 node bin/tf3-mod-validator.js mods/author_first mods/author_second
 ```
 
-Example output:
+### Mod sets
+
+Add `--set` to also check the folders as one set:
+
+```bash
+node bin/tf3-mod-validator.js --set mods/*/
+```
+
+Each mod is reported on its own first, then the set:
+
+```text
+Mod set
+  error    MODSET_INCOMPAT_ASYMMETRIC
+           "demo_signals" declares "demo_trams" incompatible, but "demo_trams" does not declare "demo_signals" incompatible.
+           - mods/demo_signals: mod.json#/incompatibilities/0
+           - mods/demo_trams: mod.json
+  error    MODSET_DEPENDENCY_CYCLE
+           Dependency cycle: "demo_roads" -> "demo_signals" -> "demo_roads".
+           - mods/demo_roads: mod.json#/dependencies/0
+           - mods/demo_signals: mod.json#/dependencies/0
+  error    MODSET_CONTENT_COLLISION
+           2 mods ship different files at content/res/models/demo/pole.mdl; the one loaded last silently replaces the others.
+           - mods/demo_roads: content/res/models/demo/pole.mdl
+           - mods/demo_signals: content/res/models/demo/pole.mdl
+  warning  MODSET_SAVEDATA_KEY_CONFLICT
+           2 mods save GUI data under the key "demo_roads", so their data mixes.
+           - mods/demo_roads: res/scripts/ui.lua:3
+           - mods/demo_trams: res/scripts/ui.lua:3
+
+3 mods checked as a set: 3 errors, 2 warnings.
+```
+
+Two mods that declare each other incompatible can never be active together, so the set never
+reports a clash between them. A required dependency that is not in the set is a warning, because
+it may be someone else's mod.
+
+### Output
+
+Example output for one mod:
 
 ```text
 mods/author_first (author_first)
@@ -54,6 +93,7 @@ Each finding gives its severity, a stable code, the file and a
 
 | Option | Effect |
 |---|---|
+| `--set` | Also check the folders as one mod set. |
 | `--json` | Print the report as JSON (see below). |
 | `-h`, `--help` | Show the help. |
 | `-v`, `--version` | Print the version. |
@@ -81,38 +121,62 @@ Each finding gives its severity, a stable code, the file and a
           "severity": "warning",
           "file": "_metadata/modinfo.json",
           "pointer": "",
+          "line": null,
           "message": "\"authors\" is missing or empty."
         }
       ]
     }
   ],
+  "set": null,
   "summary": { "mods": 1, "errors": 0, "warnings": 1 }
 }
 ```
 
 `modId` is `null` when `mod.json` has no valid one. `pointer` is `""` when the finding is about the
-whole file. `schemaVersion` changes only when this shape changes in an incompatible way.
+whole file. `line` is set for script findings and `null` otherwise.
+
+With `--set`, `set` is `{ "findings": [...] }`. A set finding has `code`, `severity`, `message` and
+`locations`: one or more `{ dir, modId, file, pointer, line }` per mod involved. The `summary`
+counts both kinds of findings.
+
+`schemaVersion` changes only when this shape changes in an incompatible way. Adding a field is not
+one of those changes.
 
 ## Library
 
 ```js
-import { validateMod, checkModJson, checkModInfo, CODES } from 'tf3-mod-validator';
+import { validateMod, validateModSet, checkModJson, checkModInfo, CODES } from 'tf3-mod-validator';
 
 const { modId, findings } = await validateMod('path/to/my_mod');
+const set = await validateModSet(['mods/author_first', 'mods/author_second']);
+// set.mods: one result per mod, as from validateMod. set.findings: the set findings.
 
 // The checks also work on already-parsed JSON:
 checkModJson({ modId: 'author_name', revision: 1 }, { folderName: 'author_name' });
 checkModInfo({ name: 'My mod', tags: ['Misc'] }, { hasDescriptionHtml: false });
 ```
 
-`validateMod` rejects with `NotADirectoryError` when the path is not a folder. Every other problem,
-including a missing or unparseable file, is a finding.
+Both reject with `NotADirectoryError` when a path is not a folder. Every other problem, including a
+missing or unparseable file, is a finding.
 
 ## Finding codes
 
 A code never changes meaning or severity once released; new checks get new codes. Errors are
 things the format forbids. Warnings are things that are allowed but are probably a mistake, or rules
 we have not confirmed in the game yet.
+
+### How scripts are scanned
+
+`SCRIPT_*` and the script codes of `MODSET_*` come from a text scan of the `.lua` and `.tl` files in
+each mod (`.d.tl` files are skipped). Comments are ignored. The scan finds:
+
+- `setGuiSaveData("key", …)` when the key is a string literal;
+- `local m = ug_require("path")` followed by `m.field = …` or `function m.field(…)`.
+
+It is not a parser, so keys built at run time, `m["field"] = …` and aliases of aliases are not
+seen. That is why these findings are warnings.
+
+Files and folders whose name starts with a dot (`.DS_Store`, `.git/`) are skipped everywhere.
 
 ### mod.json
 
@@ -187,6 +251,28 @@ we have not confirmed in the game yet.
 | `MODINFO_DEPENDENCY_FORMAT` | error | A `dependencies` entry is not a mod.io id written as a string of digits. |
 | `MODINFO_DEPENDENCY_DUPLICATE` | warning | The same mod.io id appears twice in `dependencies`. |
 | `MODINFO_URL_FORMAT` | error | `url` is not an absolute http or https URL. |
+
+### Scripts
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `SCRIPT_SAVEDATA_KEY` | warning | A script calls `setGuiSaveData` with a literal key other than the modId. |
+
+### Mod set
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `MODSET_MODID_DUPLICATE` | error | Two or more mods in the set share a modId, so the game keeps only one of them. |
+| `MODSET_DEPENDENCY_NOT_IN_SET` | warning | A required dependency is not part of the set. |
+| `MODSET_DEPENDENCY_REVISION` | error | A required dependency is in the set, but its `revision` is outside `revisionMin`..`revisionMax`. |
+| `MODSET_DEPENDENCY_CYCLE` | error | Dependencies between mods of the set form a cycle. |
+| `MODSET_INCOMPAT_ASYMMETRIC` | error | A mod declares another mod of the set incompatible, but not the other way round. |
+| `MODSET_DEP_INCOMPAT_CONFLICT` | error | A mod requires another mod of the set that declares it incompatible. |
+| `MODSET_CONTENT_COLLISION` | error | Mods that can be active together ship different files at the same path under `content/`. |
+| `MODSET_CONTENT_IDENTICAL` | warning | Mods that can be active together ship byte-identical files at the same path under `content/`. |
+| `MODSET_CONTENT_CASE_COLLISION` | warning | Mods that can be active together ship paths under `content/` that differ only in letter case. |
+| `MODSET_SAVEDATA_KEY_CONFLICT` | warning | Mods that can be active together call `setGuiSaveData` with the same literal key. |
+| `MODSET_MODULE_FIELD_CONFLICT` | warning | Mods that can be active together assign the same field of the same `ug_require` module. |
 
 ## Development
 

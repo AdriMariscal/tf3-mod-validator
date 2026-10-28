@@ -6,10 +6,11 @@
 
 Comprueba mods de Transport Fever 3 **sin abrir el juego**.
 
-- **Hoy:** mod a mod. `mod.json` y `_metadata/modinfo.json` tienen que estar bien formados.
-- **Próximamente:** conjuntos de mods. Un grupo de mods tiene que funcionar en cualquier
-  combinación: `modId` únicos, que dos mods no traigan el mismo fichero bajo `content/`, sin ciclos de
-  dependencias e incompatibilidades simétricas.
+- **Un mod:** `mod.json` y `_metadata/modinfo.json` están bien formados.
+- **Un conjunto de mods:** un grupo de mods puede estar activo en cualquier combinación sin que unos
+  pisen a otros. Eso supone `modId` únicos, que dos mods no traigan el mismo fichero bajo
+  `content/`, ningún ciclo de dependencias, incompatibilidades simétricas, y que no compartan claves
+  de datos guardados ni campos de módulos parcheados.
 
 Cada comprobación es una regla fija o un límite numérico, así que el mismo mod da siempre el mismo
 resultado. Las reglas están escritas en [docs/mod-format.md](docs/mod-format.md).
@@ -36,7 +37,45 @@ Se pueden comprobar varias carpetas en una ejecución; cada una se comprueba por
 node bin/tf3-mod-validator.js mods/autor_primero mods/autor_segundo
 ```
 
-Ejemplo de salida (los mensajes van en inglés):
+### Conjuntos de mods
+
+Añade `--set` para comprobar además las carpetas como un conjunto:
+
+```bash
+node bin/tf3-mod-validator.js --set mods/*/
+```
+
+Primero se informa de cada mod por separado y después del conjunto (los mensajes van en inglés):
+
+```text
+Mod set
+  error    MODSET_INCOMPAT_ASYMMETRIC
+           "demo_signals" declares "demo_trams" incompatible, but "demo_trams" does not declare "demo_signals" incompatible.
+           - mods/demo_signals: mod.json#/incompatibilities/0
+           - mods/demo_trams: mod.json
+  error    MODSET_DEPENDENCY_CYCLE
+           Dependency cycle: "demo_roads" -> "demo_signals" -> "demo_roads".
+           - mods/demo_roads: mod.json#/dependencies/0
+           - mods/demo_signals: mod.json#/dependencies/0
+  error    MODSET_CONTENT_COLLISION
+           2 mods ship different files at content/res/models/demo/pole.mdl; the one loaded last silently replaces the others.
+           - mods/demo_roads: content/res/models/demo/pole.mdl
+           - mods/demo_signals: content/res/models/demo/pole.mdl
+  warning  MODSET_SAVEDATA_KEY_CONFLICT
+           2 mods save GUI data under the key "demo_roads", so their data mixes.
+           - mods/demo_roads: res/scripts/ui.lua:3
+           - mods/demo_trams: res/scripts/ui.lua:3
+
+3 mods checked as a set: 3 errors, 2 warnings.
+```
+
+Dos mods que se declaran incompatibles entre sí nunca pueden estar activos a la vez, así que el
+conjunto nunca informa de choques entre ellos. Una dependencia obligatoria que no está en el conjunto
+es un aviso, porque puede ser un mod de otra persona.
+
+### Salida
+
+Ejemplo de salida para un mod (los mensajes van en inglés):
 
 ```text
 mods/autor_primero (autor_primero)
@@ -55,6 +94,7 @@ Cada hallazgo indica su severidad, un código estable, el fichero y un
 
 | Opción | Efecto |
 |---|---|
+| `--set` | Comprueba además las carpetas como un conjunto de mods. |
 | `--json` | Imprime el informe en JSON (ver abajo). |
 | `-h`, `--help` | Muestra la ayuda. |
 | `-v`, `--version` | Imprime la versión. |
@@ -82,31 +122,42 @@ Cada hallazgo indica su severidad, un código estable, el fichero y un
           "severity": "warning",
           "file": "_metadata/modinfo.json",
           "pointer": "",
+          "line": null,
           "message": "\"authors\" is missing or empty."
         }
       ]
     }
   ],
+  "set": null,
   "summary": { "mods": 1, "errors": 0, "warnings": 1 }
 }
 ```
 
 `modId` es `null` cuando `mod.json` no declara uno válido. `pointer` es `""` cuando el hallazgo se
-refiere al fichero entero. `schemaVersion` solo cambia si esta forma cambia de manera incompatible.
+refiere al fichero entero. `line` tiene valor en los hallazgos de scripts y es `null` en el resto.
+
+Con `--set`, `set` es `{ "findings": [...] }`. Un hallazgo de conjunto tiene `code`, `severity`,
+`message` y `locations`: uno o más `{ dir, modId, file, pointer, line }` por cada mod implicado. El
+`summary` cuenta los dos tipos de hallazgo.
+
+`schemaVersion` solo cambia si esta forma cambia de manera incompatible. Añadir un campo no es uno de
+esos cambios.
 
 ## Librería
 
 ```js
-import { validateMod, checkModJson, checkModInfo, CODES } from 'tf3-mod-validator';
+import { validateMod, validateModSet, checkModJson, checkModInfo, CODES } from 'tf3-mod-validator';
 
 const { modId, findings } = await validateMod('ruta/a/mi_mod');
+const set = await validateModSet(['mods/autor_primero', 'mods/autor_segundo']);
+// set.mods: un resultado por mod, como el de validateMod. set.findings: los hallazgos del conjunto.
 
 // Las comprobaciones también funcionan sobre JSON ya parseado:
 checkModJson({ modId: 'autor_nombre', revision: 1 }, { folderName: 'autor_nombre' });
 checkModInfo({ name: 'Mi mod', tags: ['Misc'] }, { hasDescriptionHtml: false });
 ```
 
-`validateMod` rechaza con `NotADirectoryError` cuando la ruta no es una carpeta. Cualquier otro
+Las dos rechazan con `NotADirectoryError` cuando una ruta no es una carpeta. Cualquier otro
 problema, incluido un fichero que falta o que no se puede parsear, es un hallazgo.
 
 ## Códigos de hallazgo
@@ -114,6 +165,19 @@ problema, incluido un fichero que falta o que no se puede parsear, es un hallazg
 Un código no cambia de significado ni de severidad una vez publicado; las comprobaciones nuevas
 llevan códigos nuevos. Los errores son cosas que el formato prohíbe. Los avisos (`warning`) son cosas
 permitidas que probablemente son un despiste, o reglas que aún no hemos confirmado en el juego.
+
+### Cómo se analizan los scripts
+
+`SCRIPT_*` y los códigos de scripts de `MODSET_*` salen de un análisis de texto de los ficheros
+`.lua` y `.tl` de cada mod (los `.d.tl` se omiten). Los comentarios se ignoran. El análisis detecta:
+
+- `setGuiSaveData("clave", …)` cuando la clave es una cadena literal;
+- `local m = ug_require("ruta")` seguido de `m.campo = …` o `function m.campo(…)`.
+
+No es un parser, así que no ve claves construidas en tiempo de ejecución, `m["campo"] = …` ni alias
+de alias. Por eso estos hallazgos son avisos.
+
+Los ficheros y carpetas cuyo nombre empieza por punto (`.DS_Store`, `.git/`) se omiten siempre.
 
 ### mod.json
 
@@ -188,6 +252,28 @@ permitidas que probablemente son un despiste, o reglas que aún no hemos confirm
 | `MODINFO_DEPENDENCY_FORMAT` | error | Una entrada de `dependencies` no es un id de mod.io escrito como cadena de dígitos. |
 | `MODINFO_DEPENDENCY_DUPLICATE` | warning | El mismo id de mod.io aparece dos veces en `dependencies`. |
 | `MODINFO_URL_FORMAT` | error | `url` no es una URL absoluta http o https. |
+
+### Scripts
+
+| Código | Severidad | Significado |
+|---|---|---|
+| `SCRIPT_SAVEDATA_KEY` | warning | Un script llama a `setGuiSaveData` con una clave literal distinta del modId. |
+
+### Conjunto de mods
+
+| Código | Severidad | Significado |
+|---|---|---|
+| `MODSET_MODID_DUPLICATE` | error | Dos o más mods del conjunto comparten modId, así que el juego solo conserva uno. |
+| `MODSET_DEPENDENCY_NOT_IN_SET` | warning | Una dependencia obligatoria no forma parte del conjunto. |
+| `MODSET_DEPENDENCY_REVISION` | error | Una dependencia obligatoria está en el conjunto, pero su `revision` queda fuera de `revisionMin`..`revisionMax`. |
+| `MODSET_DEPENDENCY_CYCLE` | error | Las dependencias entre mods del conjunto forman un ciclo. |
+| `MODSET_INCOMPAT_ASYMMETRIC` | error | Un mod declara incompatible a otro mod del conjunto, pero no al revés. |
+| `MODSET_DEP_INCOMPAT_CONFLICT` | error | Un mod requiere otro mod del conjunto que lo declara incompatible. |
+| `MODSET_CONTENT_COLLISION` | error | Mods que pueden estar activos a la vez traen ficheros distintos en la misma ruta bajo `content/`. |
+| `MODSET_CONTENT_IDENTICAL` | warning | Mods que pueden estar activos a la vez traen ficheros idénticos byte a byte en la misma ruta bajo `content/`. |
+| `MODSET_CONTENT_CASE_COLLISION` | warning | Mods que pueden estar activos a la vez traen rutas bajo `content/` que solo difieren en mayúsculas y minúsculas. |
+| `MODSET_SAVEDATA_KEY_CONFLICT` | warning | Mods que pueden estar activos a la vez llaman a `setGuiSaveData` con la misma clave literal. |
+| `MODSET_MODULE_FIELD_CONFLICT` | warning | Mods que pueden estar activos a la vez asignan el mismo campo del mismo módulo de `ug_require`. |
 
 ## Desarrollo
 

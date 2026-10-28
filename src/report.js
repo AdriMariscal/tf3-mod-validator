@@ -10,6 +10,7 @@ import { CODES } from './codes.js';
  * @property {'error' | 'warning'} severity
  * @property {string} file      Path relative to the mod folder, with `/` separators.
  * @property {string} pointer   JSON Pointer (RFC 6901) into the file; `''` means the whole file.
+ * @property {number | null} line  1-based line for text files such as scripts; `null` otherwise.
  * @property {string} message
  */
 
@@ -27,13 +28,19 @@ export function createReporter(file) {
      * @param {keyof typeof CODES} code
      * @param {string} pointer
      * @param {string} message
+     * @param {number | null} [line]
      */
-    report(code, pointer, message) {
-      const entry = CODES[code];
-      if (!entry) throw new Error(`Unknown finding code: ${code}`);
-      findings.push({ code, severity: entry.severity, file, pointer, message });
+    report(code, pointer, message, line = null) {
+      findings.push({ code, severity: severityOf(code), file, pointer, line, message });
     },
   };
+}
+
+/** The catalogue severity of a code; throws on an unknown code. */
+export function severityOf(code) {
+  const entry = CODES[code];
+  if (!entry) throw new Error(`Unknown finding code: ${code}`);
+  return entry.severity;
 }
 
 /** Builds a JSON Pointer from path segments. */

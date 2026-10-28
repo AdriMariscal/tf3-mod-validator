@@ -7,9 +7,12 @@ import { basename, join, resolve } from 'node:path';
 
 import { checkModJson, MODID_PATTERN, MODJSON_FILE } from './checks/mod-json.js';
 import { checkModInfo, MODINFO_FILE } from './checks/modinfo-json.js';
-import { createReporter } from './report.js';
+import { listFiles } from './files.js';
+import { createReporter, isPlainObject } from './report.js';
+import { checkScripts, isScriptFile, scanScript } from './scripts.js';
 
 const DESCRIPTION_HTML_FILE = '_metadata/description.html';
+const CONTENT_DIR = 'content';
 
 /**
  * @typedef {object} ModResult
@@ -19,27 +22,58 @@ const DESCRIPTION_HTML_FILE = '_metadata/description.html';
  */
 
 /**
- * Validates one mod folder: its `mod.json` and `_metadata/modinfo.json`.
+ * @typedef {object} ModReference  A valid entry of `dependencies` or `incompatibilities`.
+ * @property {string} modId
+ * @property {number} index  Position in the mod.json array.
+ * @property {boolean} optional
+ * @property {number | undefined} revisionMin  `undefined` means no limit.
+ * @property {number | undefined} revisionMax
+ */
+
+/**
+ * @typedef {object} ModFacts  What the mod-set checks need to know about one mod.
+ * @property {string} dir
+ * @property {string} root  Absolute path of the folder.
+ * @property {string | null} modId
+ * @property {number | undefined} revision
+ * @property {ModReference[]} dependencies
+ * @property {ModReference[]} incompatibilities
+ * @property {boolean} declaresIncompatibilities  mod.json has an `incompatibilities` array.
+ * @property {string[]} contentFiles  Paths under `content/`, relative to the mod folder.
+ * @property {{ file: string, scan: import('./scripts.js').ScriptScan }[]} scripts
+ */
+
+/**
+ * Validates one mod folder: its `mod.json`, `_metadata/modinfo.json` and
+ * the saved-data keys of its scripts.
  * Rejects when `dir` is not a directory; every other problem is a finding.
  * @param {string} dir
  * @returns {Promise<ModResult>}
  */
 export async function validateMod(dir) {
+  return (await loadMod(dir)).result;
+}
+
+/**
+ * Validates one mod and collects the facts the mod-set checks need.
+ * @param {string} dir
+ * @returns {Promise<{ result: ModResult, facts: ModFacts }>}
+ */
+export async function loadMod(dir) {
   const root = resolve(dir);
   if (!(await isDirectory(root))) {
     throw new NotADirectoryError(dir);
   }
 
   const findings = [];
-  let modId = null;
 
   const modJson = await readJson(root, MODJSON_FILE, 'MODJSON');
   findings.push(...modJson.findings);
+  const data = modJson.ok ? modJson.data : undefined;
   if (modJson.ok) {
-    findings.push(...checkModJson(modJson.data, { folderName: basename(root) }));
-    const declared = modJson.data?.modId;
-    if (typeof declared === 'string' && MODID_PATTERN.test(declared)) modId = declared;
+    findings.push(...checkModJson(data, { folderName: basename(root) }));
   }
+  const modId = isPlainObject(data) && typeof data.modId === 'string' && MODID_PATTERN.test(data.modId) ? data.modId : null;
 
   const modInfo = await readJson(root, MODINFO_FILE, 'MODINFO');
   findings.push(...modInfo.findings);
@@ -48,7 +82,26 @@ export async function validateMod(dir) {
     findings.push(...checkModInfo(modInfo.data, { hasDescriptionHtml }));
   }
 
-  return { dir, modId, findings };
+  const files = await listFiles(root);
+  const scripts = [];
+  for (const file of files.filter(isScriptFile)) {
+    scripts.push({ file, scan: scanScript(await readFile(join(root, file), 'utf8')) });
+  }
+  findings.push(...checkScripts(scripts, modId));
+
+  const facts = {
+    dir,
+    root,
+    modId,
+    revision: isPlainObject(data) && Number.isInteger(data.revision) ? data.revision : undefined,
+    dependencies: readReferences(data, 'dependencies'),
+    incompatibilities: readReferences(data, 'incompatibilities'),
+    declaresIncompatibilities: isPlainObject(data) && Array.isArray(data.incompatibilities),
+    contentFiles: files.filter((file) => file.startsWith(`${CONTENT_DIR}/`)),
+    scripts,
+  };
+
+  return { result: { dir, modId, findings }, facts };
 }
 
 export class NotADirectoryError extends Error {
@@ -57,6 +110,33 @@ export class NotADirectoryError extends Error {
     this.name = 'NotADirectoryError';
     this.dir = dir;
   }
+}
+
+/**
+ * Keeps the well-formed entries of `dependencies` or `incompatibilities`.
+ * Malformed ones are already reported by checkModJson.
+ * @returns {ModReference[]}
+ */
+function readReferences(data, field) {
+  const list = isPlainObject(data) && Array.isArray(data[field]) ? data[field] : [];
+  const references = [];
+  list.forEach((entry, index) => {
+    const mod = isPlainObject(entry) ? entry.mod : undefined;
+    if (!isPlainObject(mod) || typeof mod.modId !== 'string' || !MODID_PATTERN.test(mod.modId)) return;
+    references.push({
+      modId: mod.modId,
+      index,
+      optional: entry.optional === true,
+      revisionMin: revisionLimit(mod.revisionMin),
+      revisionMax: revisionLimit(mod.revisionMax),
+    });
+  });
+  return references;
+}
+
+/** `-1`, a missing value and an invalid value all mean no limit. */
+function revisionLimit(value) {
+  return Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
 /**

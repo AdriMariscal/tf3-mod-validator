@@ -1,0 +1,6 @@
+{
+  "name": "Demo signals",
+  "summary": "Part of a demo set that clashes on purpose.",
+  "authors": [{ "name": "Demo Author", "role": "Creator" }],
+  "tags": ["Misc"]
+}
