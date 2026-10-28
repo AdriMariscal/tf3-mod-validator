@@ -11,24 +11,33 @@
   ],
   "license": "MPL-2.0",
   "author": "Adrian Mariscal",
+  "homepage": "https://github.com/AdriMariscal/tf3-mod-validator#readme",
+  "bugs": {
+    "url": "https://github.com/AdriMariscal/tf3-mod-validator/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AdriMariscal/tf3-mod-validator.git"
   },
   "type": "module",
-  "exports": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "tf3-mod-validator": "bin/tf3-mod-validator.js"
   },
   "files": [
     "bin",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=24"
   },
   "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "node --test"
   }
 }

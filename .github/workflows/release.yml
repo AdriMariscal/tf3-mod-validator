@@ -1,0 +1,48 @@
+name: Release
+
+# Publishes to npm when a version tag (v1.2.3) is pushed. Uses npm trusted
+# publishing (OIDC): no token is stored, and npm adds a provenance
+# attestation on its own. The trusted publisher must point at this file.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Runs first, so a wrong tag fails before anything is installed.
+      - name: Check that the tag matches package.json
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $expected" >&2
+            exit 1
+          fi
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      # A version published by hand (the very first one, before the trusted
+      # publisher existed) is skipped instead of failing the run.
+      - name: Check whether this version is already on npm
+        id: published
+        run: |
+          if npm view "$(node -p "require('./package.json').name")@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "Version ${GITHUB_REF_NAME#v} is already on npm; nothing to publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      # Trusted publishing needs npm 11.5.1 or later; Node 24 ships a newer one.
+      - if: steps.published.outputs.skip != 'true'
+        run: npm publish

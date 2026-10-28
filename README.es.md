@@ -22,19 +22,30 @@ resultado. Las reglas están escritas en [docs/mod-format.md](docs/mod-format.md
 
 Node.js 24 o posterior. Sin dependencias en tiempo de ejecución.
 
-## Uso
+## Instalación
 
-Todavía no está en npm. Desde un clon de este repositorio:
+Ejecútalo sin instalar nada:
 
 ```bash
-pnpm install
-node bin/tf3-mod-validator.js ruta/a/mi_mod
+npx tf3-mod-validator ruta/a/mi_mod
+```
+
+O añádelo a un proyecto, por ejemplo para comprobar tus mods en CI:
+
+```bash
+pnpm add --save-dev tf3-mod-validator
+```
+
+## Uso
+
+```bash
+tf3-mod-validator ruta/a/mi_mod
 ```
 
 Se pueden comprobar varias carpetas en una ejecución; cada una se comprueba por separado:
 
 ```bash
-node bin/tf3-mod-validator.js mods/autor_primero mods/autor_segundo
+tf3-mod-validator mods/autor_primero mods/autor_segundo
 ```
 
 ### Conjuntos de mods
@@ -42,7 +53,7 @@ node bin/tf3-mod-validator.js mods/autor_primero mods/autor_segundo
 Añade `--set` para comprobar además las carpetas como un conjunto:
 
 ```bash
-node bin/tf3-mod-validator.js --set mods/*/
+tf3-mod-validator --set mods/*/
 ```
 
 Primero se informa de cada mod por separado y después del conjunto (los mensajes van en inglés):
@@ -285,6 +296,13 @@ pnpm test
 Los tests usan `node:test`. Los fixtures de `test/fixtures/` son mods mínimos escritos desde cero para
 este repositorio; no incluyen ficheros del juego ni mods de terceros. Un test falla si algún código
 no aparece en los tests o en alguno de los dos README.
+
+## Publicar una versión
+
+1. Sube `version` en `package.json` y añade la entrada en [CHANGELOG.md](CHANGELOG.md).
+2. Haz commit, crea el tag y súbelo: `git tag v0.2.0 && git push origin main v0.2.0`.
+3. El [workflow de Release](.github/workflows/release.yml) pasa los tests y publica en npm mediante
+   trusted publishing, con atestación de provenance. No se guarda ningún token de npm.
 
 ## Licencia
 
